@@ -1,0 +1,132 @@
+import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+
+export const employeeApi = createApi({
+  reducerPath: "employeeApi",
+
+  baseQuery: fetchBaseQuery({
+    baseUrl: "https://669b3f09276e45187d34eb4e.mockapi.io/api/v1/",
+  }),
+
+  tagTypes: ["Employee"],
+
+  endpoints: (builder) => ({
+    // =========================================================
+    // GET ALL EMPLOYEES
+    // =========================================================
+    getEmployees: builder.query({
+      query: () => "employee",
+
+      providesTags: (result) =>
+        result
+          ? [
+              // Individual employee tags
+              ...result.map((employee) => ({
+                type: "Employee",
+                id: employee.id,
+              })),
+
+              // Tag for the complete list
+              {
+                type: "Employee",
+                id: "LIST",
+              },
+            ]
+          : [
+              {
+                type: "Employee",
+                id: "LIST",
+              },
+            ],
+    }),
+
+    // =========================================================
+    // GET EMPLOYEE BY ID
+    // =========================================================
+    getEmployeeById: builder.query({
+      query: (id) => `employee/${id}`,
+
+      providesTags: (result, error, id) => [
+        {
+          type: "Employee",
+          id,
+        },
+      ],
+    }),
+
+    // =========================================================
+    // CREATE EMPLOYEE
+    // =========================================================
+    createEmployee: builder.mutation({
+      query: (employee) => ({
+        url: "employee",
+        method: "POST",
+        body: employee,
+      }),
+
+      // Refresh employee list after creating
+      invalidatesTags: [
+        {
+          type: "Employee",
+          id: "LIST",
+        },
+      ],
+    }),
+
+    // =========================================================
+    // UPDATE EMPLOYEE
+    // =========================================================
+    updateEmployee: builder.mutation({
+      query: ({ id, employee }) => ({
+        url: `employee/${id}`,
+        method: "PUT",
+        body: employee,
+      }),
+
+      // Refresh both individual employee and employee list
+      invalidatesTags: (result, error, { id }) => [
+        {
+          type: "Employee",
+          id,
+        },
+        {
+          type: "Employee",
+          id: "LIST",
+        },
+      ],
+    }),
+
+    // =========================================================
+    // DELETE EMPLOYEE
+    // =========================================================
+    deleteEmployee: builder.mutation({
+      query: (id) => ({
+        url: `employee/${id}`,
+        method: "DELETE",
+      }),
+
+      // Refresh employee list after deletion
+      invalidatesTags: (result, error, id) => [
+        {
+          type: "Employee",
+          id,
+        },
+        {
+          type: "Employee",
+          id: "LIST",
+        },
+      ],
+    }),
+  }),
+});
+
+// =============================================================
+// GENERATED HOOKS
+// =============================================================
+
+export const {
+  useGetEmployeesQuery,
+  useGetEmployeeByIdQuery,
+  useCreateEmployeeMutation,
+  useUpdateEmployeeMutation,
+  useDeleteEmployeeMutation,
+} = employeeApi;
