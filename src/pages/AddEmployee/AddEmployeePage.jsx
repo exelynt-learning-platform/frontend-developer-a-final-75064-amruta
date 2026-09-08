@@ -1,29 +1,27 @@
-import { Box, Typography, Paper, Alert } from "@mui/material";
-
+import { Box, Typography, Paper } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 
 import { useCreateEmployeeMutation } from "../../features/employees/employeeApi";
-
 import { useGetCountriesQuery } from "../../features/countries/countryApi";
-
 import EmployeeForm from "../../components/employee/EmployeeForm";
+import ErrorMessage from "../../components/common/ErrorMessage";
 
 function AddEmployeePage() {
   const navigate = useNavigate();
 
   const {
-    data: countries,
+    data: countries = [],
     isLoading: isCountriesLoading,
     isError: isCountriesError,
+    error: countriesError,
   } = useGetCountriesQuery();
 
-  const [createEmployee, { isLoading: isCreating, isError: isCreateError }] =
+  const [createEmployee, { isLoading: isCreating, isError: isCreateError, error: createError }] =
     useCreateEmployeeMutation();
 
   const handleSubmit = async (formData) => {
     try {
       await createEmployee(formData).unwrap();
-
       navigate("/employees");
     } catch (error) {
       console.error("Failed to create employee:", error);
@@ -36,24 +34,29 @@ function AddEmployeePage() {
 
   return (
     <Box>
-      <Typography variant="h4" sx={{ mb: 1 }}>
+      <Typography variant="h4" component="h1" sx={{ mb: 1 }}>
         Add Employee
       </Typography>
 
       <Typography color="text.secondary" sx={{ mb: 3 }}>
-        Enter employee information
+        Enter employee information to add them to the directory
       </Typography>
 
       {isCountriesError && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          Failed to load countries.
-        </Alert>
+        <ErrorMessage
+          title="Country Warning"
+          severity="warning"
+          message="Failed to load country list from server. You can still type details manually if needed."
+          error={countriesError}
+        />
       )}
 
       {isCreateError && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          Failed to create employee. Please try again.
-        </Alert>
+        <ErrorMessage
+          title="Creation Failed"
+          message="Failed to create employee. Please try again."
+          error={createError}
+        />
       )}
 
       <Paper
@@ -66,6 +69,7 @@ function AddEmployeePage() {
         <EmployeeForm
           countries={countries}
           isSubmitting={isCreating || isCountriesLoading}
+          isCountriesLoading={isCountriesLoading}
           onSubmit={handleSubmit}
           onCancel={handleCancel}
         />

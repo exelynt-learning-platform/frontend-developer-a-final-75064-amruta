@@ -10,18 +10,22 @@ import {
 
 import EmployeeRow from "./EmployeeRow";
 
-function EmployeeTable({ employees, onEdit, onDelete }) {
+function EmployeeTable({ employees = [], onEdit, onDelete, isDeleting = false }) {
+  if (!employees.length) {
+    return null;
+  }
+
   return (
-    <TableContainer component={Paper}>
-      <Table>
-        <TableHead>
+    <TableContainer component={Paper} sx={{ boxShadow: 1, borderRadius: 2, overflowX: "auto" }}>
+      <Table aria-label="Employees table">
+        <TableHead sx={{ backgroundColor: "grey.100" }}>
           <TableRow>
-            <TableCell>ID</TableCell>
-            <TableCell>Name</TableCell>
-            <TableCell>Email</TableCell>
-            <TableCell>Mobile</TableCell>
-            <TableCell>Country</TableCell>
-            <TableCell>Actions</TableCell>
+            <TableCell sx={{ fontWeight: "bold" }}>ID</TableCell>
+            <TableCell sx={{ fontWeight: "bold" }}>Name</TableCell>
+            <TableCell sx={{ fontWeight: "bold" }}>Email</TableCell>
+            <TableCell sx={{ fontWeight: "bold" }}>Mobile</TableCell>
+            <TableCell sx={{ fontWeight: "bold" }}>Country</TableCell>
+            <TableCell align="center" sx={{ fontWeight: "bold" }}>Actions</TableCell>
           </TableRow>
         </TableHead>
 
@@ -32,6 +36,7 @@ function EmployeeTable({ employees, onEdit, onDelete }) {
               employee={employee}
               onEdit={onEdit}
               onDelete={onDelete}
+              isDeleting={isDeleting}
             />
           ))}
         </TableBody>

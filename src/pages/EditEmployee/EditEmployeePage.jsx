@@ -1,89 +1,40 @@
-import { useEffect, useState } from "react";
+import { Box, Typography, Paper, Alert } from "@mui/material";
 import { useParams, useNavigate } from "react-router-dom";
-
-import { TextField, MenuItem, Button, Box, Typography } from "@mui/material";
 
 import {
   useGetEmployeeByIdQuery,
   useUpdateEmployeeMutation,
 } from "../../features/employees/employeeApi";
-
 import { useGetCountriesQuery } from "../../features/countries/countryApi";
+import EmployeeForm from "../../components/employee/EmployeeForm";
+import LoadingSpinner from "../../components/common/LoadingSpinner";
+import ErrorMessage from "../../components/common/ErrorMessage";
 
 function EditEmployeePage() {
   const { id } = useParams();
   const navigate = useNavigate();
 
+  // Fetch employee by ID
   const {
     data: employee,
-    isLoading: employeeLoading,
-    isError: employeeError,
-  } = useGetEmployeeByIdQuery(id);
+    isLoading: isEmployeeLoading,
+    isError: isEmployeeError,
+    error: employeeError,
+    refetch: refetchEmployee,
+  } = useGetEmployeeByIdQuery(id, { skip: !id });
 
-  const { data: countries = [], isLoading: countriesLoading } =
-    useGetCountriesQuery();
+  // Fetch countries list for the dropdown
+  const {
+    data: countries = [],
+    isLoading: isCountriesLoading,
+    isError: isCountriesError,
+  } = useGetCountriesQuery();
 
-  const [updateEmployee, { isLoading: updating }] = useUpdateEmployeeMutation();
+  // Update employee mutation
+  const [updateEmployee, { isLoading: isUpdating, isError: isUpdateError, error: updateError }] =
+    useUpdateEmployeeMutation();
 
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    mobile: "",
-    country: "",
-    state: "",
-    district: "",
-  });
-
-  /*
-   * Populate form when employee API returns data
-   */
-  useEffect(() => {
-    if (employee) {
-      setFormData({
-        name: employee.name || "",
-        email: employee.email || "",
-        mobile: employee.mobile || "",
-        country: employee.country || "",
-        state: employee.state || "",
-        district: employee.district || "",
-      });
-    }
-  }, [employee]);
-
-  /*
-   * Generic input handler
-   */
-  const handleChange = (event) => {
-    const { name, value } = event.target;
-
-    setFormData((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
-  };
-
-  /*
-   * Country change
-   */
-  const handleCountryChange = (event) => {
-    const selectedCountry = event.target.value;
-
-    setFormData((previous) => ({
-      ...previous,
-      country: selectedCountry,
-
-      // Reset dependent fields
-      state: "",
-      district: "",
-    }));
-  };
-
-  /*
-   * Update employee
-   */
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-
+  const handleSubmit = async (formData) => {
     try {
       await updateEmployee({
         id,
@@ -91,129 +42,73 @@ function EditEmployeePage() {
       }).unwrap();
 
       navigate("/employees");
-    } catch (error) {
-      console.error("Failed to update employee:", error);
+    } catch (err) {
+      console.error("Failed to update employee:", err);
     }
   };
 
-  if (employeeLoading) {
-    return <Typography>Loading employee...</Typography>;
+  const handleCancel = () => {
+    navigate("/employees");
+  };
+
+  if (isEmployeeLoading) {
+    return <LoadingSpinner message={`Loading employee #${id}...`} />;
   }
 
-  if (employeeError) {
-    return <Typography color="error">Failed to load employee.</Typography>;
+  if (isEmployeeError || !employee) {
+    return (
+      <Box sx={{ maxWidth: 600, mx: "auto", mt: 4 }}>
+        <ErrorMessage
+          title="Employee Not Found"
+          message={`Unable to load employee #${id}.`}
+          error={employeeError}
+          onRetry={refetchEmployee}
+        />
+      </Box>
+    );
   }
 
   return (
-    <Box
-      component="form"
-      onSubmit={handleSubmit}
-      sx={{
-        maxWidth: 700,
-        margin: "40px auto",
-        padding: 3,
-      }}
-    >
-      <Typography variant="h5" mb={3}>
-        Edit Employee
+    <Box>
+      <Typography variant="h4" component="h1" sx={{ mb: 1 }}>
+        Edit Employee #{id}
       </Typography>
 
-      {/* Name */}
-      <TextField
-        fullWidth
-        label="Name"
-        name="name"
-        value={formData.name}
-        onChange={handleChange}
-        margin="normal"
-      />
+      <Typography color="text.secondary" sx={{ mb: 3 }}>
+        Update employee information
+      </Typography>
 
-      {/* Email */}
-      <TextField
-        fullWidth
-        label="Email"
-        name="email"
-        value={formData.email}
-        onChange={handleChange}
-        margin="normal"
-      />
+      {isCountriesError && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Failed to load country list. You can still update other details.
+        </Alert>
+      )}
 
-      {/* Mobile */}
-      <TextField
-        fullWidth
-        label="Mobile"
-        name="mobile"
-        value={formData.mobile}
-        onChange={handleChange}
-        margin="normal"
-      />
+      {isUpdateError && (
+        <ErrorMessage
+          title="Update Failed"
+          message="Failed to update employee. Please check your data and try again."
+          error={updateError}
+        />
+      )}
 
-      {/* Country */}
-      <TextField
-        select
-        fullWidth
-        label="Country"
-        name="country"
-        value={formData.country}
-        onChange={handleCountryChange}
-        margin="normal"
-        disabled={countriesLoading}
-      >
-        {countries.map((country) => (
-          <MenuItem key={country.id} value={country.country}>
-            {country.country}
-          </MenuItem>
-        ))}
-      </TextField>
-
-      {/* State */}
-      <TextField
-        select
-        fullWidth
-        label="State"
-        name="state"
-        value={formData.state}
-        onChange={handleChange}
-        margin="normal"
-        disabled={!formData.country}
-      >
-        <MenuItem value="">Select State</MenuItem>
-
-        {/* Add your state data here */}
-      </TextField>
-
-      {/* District */}
-      <TextField
-        select
-        fullWidth
-        label="District"
-        name="district"
-        value={formData.district}
-        onChange={handleChange}
-        margin="normal"
-        disabled={!formData.state}
-      >
-        <MenuItem value="">Select District</MenuItem>
-
-        {/* Add your district data here */}
-      </TextField>
-
-      <Box
+      <Paper
         sx={{
-          display: "flex",
-          justifyContent: "flex-end",
-          gap: 2,
-          mt: 3,
+          p: { xs: 2, sm: 3, md: 4 },
+          maxWidth: 800,
+          mx: "auto",
         }}
       >
-        <Button variant="outlined" onClick={() => navigate("/employees")}>
-          Cancel
-        </Button>
-
-        <Button type="submit" variant="contained" disabled={updating}>
-          {updating ? "Updating..." : "Update Employee"}
-        </Button>
-      </Box>
+        <EmployeeForm
+          isEdit
+          countries={countries}
+          defaultValues={employee}
+          isSubmitting={isUpdating || isCountriesLoading}
+          isCountriesLoading={isCountriesLoading}
+          onSubmit={handleSubmit}
+          onCancel={handleCancel}
+        />
+      </Paper>
     </Box>
   );
 }
