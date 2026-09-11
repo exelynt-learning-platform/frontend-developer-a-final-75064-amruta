@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import {
   Box,
   TextField,
@@ -12,14 +12,14 @@ import { yupResolver } from "@hookform/resolvers/yup";
 
 import { employeeValidationSchema } from "../../validations/employeeValidation";
 
-const EMPTY_VALUES = {
+const EMPTY_VALUES = Object.freeze({
   name: "",
   email: "",
   mobile: "",
   country: "",
   state: "",
   district: "",
-};
+});
 
 function EmployeeForm({
   countries = [],
@@ -30,6 +30,23 @@ function EmployeeForm({
   isCountriesLoading = false,
   isEdit = false,
 }) {
+  // Memoize the default values object so it remains reference-stable across renders.
+  // If the parent doesn't provide defaultValues or re-renders frequently, React Hook Form
+  // will not reset unexpectedly.
+  const memoizedDefaultValues = useMemo(() => {
+    if (!defaultValues) {
+      return EMPTY_VALUES;
+    }
+    return {
+      name: defaultValues.name || "",
+      email: defaultValues.email || defaultValues.emailId || "",
+      mobile: defaultValues.mobile || "",
+      country: defaultValues.country || "",
+      state: defaultValues.state || "",
+      district: defaultValues.district || "",
+    };
+  }, [defaultValues]);
+
   const {
     register,
     handleSubmit,
@@ -37,22 +54,15 @@ function EmployeeForm({
     formState: { errors },
   } = useForm({
     resolver: yupResolver(employeeValidationSchema),
-    defaultValues: defaultValues || EMPTY_VALUES,
+    defaultValues: memoizedDefaultValues,
   });
 
-  // Re-synchronize form values when defaultValues update (e.g. after async fetch in Edit)
+  // Re-synchronize form values when defaultValues actually updates (e.g. after async fetch in Edit)
   useEffect(() => {
     if (defaultValues) {
-      reset({
-        name: defaultValues.name || "",
-        email: defaultValues.email || defaultValues.emailId || "",
-        mobile: defaultValues.mobile || "",
-        country: defaultValues.country || "",
-        state: defaultValues.state || "",
-        district: defaultValues.district || "",
-      });
+      reset(memoizedDefaultValues);
     }
-  }, [defaultValues, reset]);
+  }, [memoizedDefaultValues, reset, defaultValues]);
 
   return (
     <Box

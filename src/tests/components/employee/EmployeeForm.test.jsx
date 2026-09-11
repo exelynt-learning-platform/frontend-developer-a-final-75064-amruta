@@ -142,4 +142,37 @@ describe("EmployeeForm Component", () => {
     expect(screen.getByLabelText(/employee state/i)).toHaveValue("State1");
     expect(screen.getByLabelText(/employee district/i)).toHaveValue("District1");
   });
+
+  it("does not reset user inputs when parent re-renders without defaultValues", () => {
+    const { rerender } = render(
+      <EmployeeForm
+        countries={mockCountries}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+
+    // User types into the form
+    const nameInput = screen.getByLabelText(/employee name/i);
+    const emailInput = screen.getByLabelText(/employee email/i);
+    fireEvent.change(nameInput, { target: { value: "Jane Smith" } });
+    fireEvent.change(emailInput, { target: { value: "jane@example.com" } });
+
+    expect(nameInput).toHaveValue("Jane Smith");
+    expect(emailInput).toHaveValue("jane@example.com");
+
+    // Parent re-renders (simulating parent state updates without passing defaultValues)
+    rerender(
+      <EmployeeForm
+        countries={mockCountries}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        isCountriesLoading={false}
+      />
+    );
+
+    // Form inputs must retain their values and not be wiped/reset
+    expect(nameInput).toHaveValue("Jane Smith");
+    expect(emailInput).toHaveValue("jane@example.com");
+  });
 });

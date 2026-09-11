@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Box, Typography, Paper, Alert } from "@mui/material";
 import { useParams, useNavigate } from "react-router-dom";
 
@@ -6,6 +7,7 @@ import {
   useUpdateEmployeeMutation,
 } from "../../features/employees/employeeApi";
 import { useGetCountriesQuery } from "../../features/countries/countryApi";
+import { getErrorMessage } from "../../utils/errorHandler";
 import EmployeeForm from "../../components/employee/EmployeeForm";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ErrorMessage from "../../components/common/ErrorMessage";
@@ -13,22 +15,26 @@ import ErrorMessage from "../../components/common/ErrorMessage";
 function EditEmployeePage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [submitErrorMessage, setSubmitErrorMessage] = useState(null);
 
-  // Fetch employee by ID
+  // Validate ID parameter before triggering any API queries to prevent unnecessary calls
+  const isValidId = Boolean(id && String(id).trim() && id !== "undefined" && id !== "null");
+
+  // Fetch employee by ID (skipped if ID is missing or invalid)
   const {
     data: employee,
     isLoading: isEmployeeLoading,
     isError: isEmployeeError,
     error: employeeError,
     refetch: refetchEmployee,
-  } = useGetEmployeeByIdQuery(id, { skip: !id });
+  } = useGetEmployeeByIdQuery(id, { skip: !isValidId });
 
-  // Fetch countries list for the dropdown
+  // Fetch countries list for the dropdown (skipped if ID is invalid)
   const {
     data: countries = [],
     isLoading: isCountriesLoading,
     isError: isCountriesError,
-  } = useGetCountriesQuery();
+  } = useGetCountriesQuery(undefined, { skip: !isValidId });
 
   // Update employee mutation
   const [updateEmployee, { isLoading: isUpdating, isError: isUpdateError, error: updateError }] =
@@ -36,6 +42,7 @@ function EditEmployeePage() {
 
   const handleSubmit = async (formData) => {
     try {
+      setSubmitErrorMessage(null);
       await updateEmployee({
         id,
         employee: formData,
@@ -43,7 +50,11 @@ function EditEmployeePage() {
 
       navigate("/employees");
     } catch (err) {
-      console.error("Failed to update employee:", err);
+      const userMessage = getErrorMessage(
+        err,
+        "Failed to update employee. Please check your data and try again."
+      );
+      setSubmitErrorMessage(userMessage);
     }
   };
 
@@ -51,11 +62,24 @@ function EditEmployeePage() {
     navigate("/employees");
   };
 
+  // Immediate validation error when ID parameter is missing or invalid
+  if (!isValidId) {
+    return (
+      <Box sx={{ maxWidth: 600, mx: "auto", mt: 4 }}>
+        <ErrorMessage
+          title="Invalid Employee ID"
+          message={`The employee ID "${id || ""}" is invalid. Please return to the directory and select a valid employee.`}
+          onRetry={() => navigate("/employees")}
+        />
+      </Box>
+    );
+  }
+
   if (isEmployeeLoading) {
     return <LoadingSpinner message={`Loading employee #${id}...`} />;
   }
 
-  if (isEmployeeError || !employee) {
+  if (isEmployeeError || !employee || (Array.isArray(employee) && employee.length === 0)) {
     return (
       <Box sx={{ maxWidth: 600, mx: "auto", mt: 4 }}>
         <ErrorMessage
@@ -84,10 +108,10 @@ function EditEmployeePage() {
         </Alert>
       )}
 
-      {isUpdateError && (
+      {(isUpdateError || submitErrorMessage) && (
         <ErrorMessage
           title="Update Failed"
-          message="Failed to update employee. Please check your data and try again."
+          message={submitErrorMessage || "Failed to update employee. Please check your data and try again."}
           error={updateError}
         />
       )}

@@ -10,7 +10,7 @@ const mockDeleteEmployee = vi.fn();
 const mockUseDeleteEmployeeMutation = vi.fn(() => [mockDeleteEmployee, { isLoading: false }]);
 
 vi.mock("../../features/employees/employeeApi", () => ({
-  useGetEmployeesQuery: () => mockUseGetEmployeesQuery(),
+  useGetEmployeesQuery: (arg, options) => mockUseGetEmployeesQuery(arg, options),
   useGetEmployeeByIdQuery: (id, options) => mockUseGetEmployeeByIdQuery(id, options),
   useDeleteEmployeeMutation: () => mockUseDeleteEmployeeMutation(),
 }));
@@ -265,5 +265,97 @@ describe("EmployeeListPage", () => {
 
     expect(screen.getByText("Amruta Musmade")).toBeInTheDocument();
     expect(screen.queryByText("Rita Sharma")).not.toBeInTheDocument();
+  });
+
+  it("shows not found message when searching for an employee ID and mockapi returns an empty array", () => {
+    mockUseGetEmployeesQuery.mockReturnValue({
+      data: sampleEmployees,
+      isLoading: false,
+      isError: false,
+    });
+    // mockapi.io returns empty array [] on non-existent IDs instead of 404
+    mockUseGetEmployeeByIdQuery.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    });
+
+    render(
+      <MemoryRouter>
+        <EmployeeListPage />
+      </MemoryRouter>
+    );
+
+    const searchInput = screen.getByLabelText(/search employee by id/i);
+    fireEvent.change(searchInput, { target: { value: "9999" } });
+    fireEvent.click(screen.getByRole("button", { name: /search/i }));
+
+    expect(screen.getByText("No Employee Found")).toBeInTheDocument();
+    expect(
+      screen.getByText(/employee with id "9999" was not found/i)
+    ).toBeInTheDocument();
+  });
+
+  it("restores employee table immediately when clearing search even if search query isLoading is true", () => {
+    mockUseGetEmployeesQuery.mockReturnValue({
+      data: sampleEmployees,
+      isLoading: false,
+      isError: false,
+    });
+    // Simulate active in-flight search query
+    mockUseGetEmployeeByIdQuery.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+    });
+
+    render(
+      <MemoryRouter>
+        <EmployeeListPage />
+      </MemoryRouter>
+    );
+
+    // Perform a search
+    const searchInput = screen.getByLabelText(/search employee by id/i);
+    fireEvent.change(searchInput, { target: { value: "5" } });
+    fireEvent.click(screen.getByRole("button", { name: /search/i }));
+
+    // Verify search loading spinner is shown
+    expect(screen.getByText(/searching for employee #5.../i)).toBeInTheDocument();
+
+    // Now click clear button while query is still loading
+    const clearBtn = screen.getByRole("button", { name: /clear/i });
+    fireEvent.click(clearBtn);
+
+    // Employee table should be displayed immediately and NOT get stuck on loading spinner
+    expect(screen.queryByText(/searching for employee/i)).not.toBeInTheDocument();
+    expect(screen.getByText("Amruta Musmade")).toBeInTheDocument();
+    expect(screen.getByText("Rita Sharma")).toBeInTheDocument();
+  });
+
+  it("skips fetching all employees when search query is active to prevent inefficient API usage", () => {
+    mockUseGetEmployeesQuery.mockReturnValue({
+      data: sampleEmployees,
+      isLoading: false,
+      isError: false,
+    });
+    mockUseGetEmployeeByIdQuery.mockReturnValue({
+      data: sampleEmployees[0],
+      isLoading: false,
+      isError: false,
+    });
+
+    render(
+      <MemoryRouter>
+        <EmployeeListPage />
+      </MemoryRouter>
+    );
+
+    const searchInput = screen.getByLabelText(/search employee by id/i);
+    fireEvent.change(searchInput, { target: { value: "1" } });
+    fireEvent.click(screen.getByRole("button", { name: /search/i }));
+
+    expect(mockUseGetEmployeesQuery).toHaveBeenCalledWith(undefined, { skip: true });
+    expect(mockUseGetEmployeeByIdQuery).toHaveBeenCalledWith("1", { skip: false });
   });
 });

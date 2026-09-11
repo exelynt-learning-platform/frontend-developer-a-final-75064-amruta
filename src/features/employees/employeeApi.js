@@ -46,6 +46,19 @@ export const employeeApi = createApi({
     getEmployeeById: builder.query({
       query: (id) => `employee/${id}`,
 
+      // mockapi.io returns an empty array [] for non-existent IDs instead of 404.
+      // If the response is an empty array or empty result, normalize it to null
+      // so consumers can accurately detect the 'not found' condition.
+      transformResponse: (response) => {
+        if (Array.isArray(response)) {
+          return response.length > 0 ? response[0] : null;
+        }
+        if (!response || (typeof response === "object" && Object.keys(response).length === 0)) {
+          return null;
+        }
+        return response;
+      },
+
       providesTags: (result, error, id) => [
         {
           type: "Employee",

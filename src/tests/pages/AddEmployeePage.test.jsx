@@ -101,4 +101,45 @@ describe("AddEmployeePage", () => {
     fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
     expect(mockNavigate).toHaveBeenCalledWith("/employees");
   });
+
+  it("displays user-friendly error message when employee creation fails", async () => {
+    mockCreateEmployee.mockReturnValue({
+      unwrap: () => Promise.reject({ status: 500, data: { message: "Database connection failed" } }),
+    });
+
+    render(
+      <MemoryRouter>
+        <AddEmployeePage />
+      </MemoryRouter>
+    );
+
+    fireEvent.change(screen.getByLabelText(/employee name/i), {
+      target: { value: "New Employee" },
+    });
+    fireEvent.change(screen.getByLabelText(/employee email/i), {
+      target: { value: "new@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText(/employee mobile number/i), {
+      target: { value: "9876543210" },
+    });
+
+    const countrySelect = screen.getByLabelText(/country/i);
+    fireEvent.mouseDown(countrySelect);
+    const countryOption = await screen.findByRole("option", { name: "India" });
+    fireEvent.click(countryOption);
+
+    fireEvent.change(screen.getByLabelText(/employee state/i), {
+      target: { value: "Maharashtra" },
+    });
+    fireEvent.change(screen.getByLabelText(/employee district/i), {
+      target: { value: "Pune" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /add employee/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Creation Failed")).toBeInTheDocument();
+      expect(screen.getByText("Database connection failed")).toBeInTheDocument();
+    });
+  });
 });

@@ -17,7 +17,7 @@ vi.mock("../../features/employees/employeeApi", () => ({
 }));
 
 vi.mock("../../features/countries/countryApi", () => ({
-  useGetCountriesQuery: () => mockUseGetCountriesQuery(),
+  useGetCountriesQuery: (arg, opts) => mockUseGetCountriesQuery(arg, opts),
 }));
 
 const mockNavigate = vi.fn();
@@ -86,6 +86,17 @@ describe("EditEmployeePage", () => {
     expect(screen.getByText("Employee Not Found")).toBeInTheDocument();
   });
 
+  it("renders not found error state when employee query returns empty array or null", () => {
+    mockUseGetEmployeeByIdQuery.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    });
+
+    renderWithRoute();
+    expect(screen.getByText("Employee Not Found")).toBeInTheDocument();
+  });
+
   it("pre-populates form with employee data and updates successfully", async () => {
     mockUseGetEmployeeByIdQuery.mockReturnValue({
       data: mockEmployee,
@@ -129,5 +140,39 @@ describe("EditEmployeePage", () => {
     renderWithRoute();
     fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
     expect(mockNavigate).toHaveBeenCalledWith("/employees");
+  });
+
+  it("shows invalid employee ID error when id parameter is invalid", () => {
+    render(
+      <MemoryRouter initialEntries={["/employees/edit/undefined"]}>
+        <Routes>
+          <Route path="/employees/edit/:id" element={<EditEmployeePage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText("Invalid Employee ID")).toBeInTheDocument();
+    expect(screen.getByText(/the employee id "undefined" is invalid/i)).toBeInTheDocument();
+    expect(mockUseGetEmployeeByIdQuery).toHaveBeenCalledWith("undefined", { skip: true });
+    expect(mockUseGetCountriesQuery).toHaveBeenCalledWith(undefined, { skip: true });
+  });
+
+  it("displays error message when update fails", async () => {
+    mockUseGetEmployeeByIdQuery.mockReturnValue({
+      data: mockEmployee,
+      isLoading: false,
+      isError: false,
+    });
+    mockUpdateEmployee.mockReturnValue({
+      unwrap: () => Promise.reject({ status: 500, data: "Server update error" }),
+    });
+
+    renderWithRoute();
+
+    fireEvent.click(screen.getByRole("button", { name: /update employee/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Update Failed")).toBeInTheDocument();
+    });
   });
 });

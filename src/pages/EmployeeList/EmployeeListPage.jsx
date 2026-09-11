@@ -22,23 +22,32 @@ function EmployeeListPage() {
   const [deleteTargetId, setDeleteTargetId] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
 
-  // Get all employees
+  // Get all employees (conditionally skipped when searching by ID to avoid redundant API requests)
   const {
     data: employees = [],
     isLoading,
     isError,
     error,
     refetch,
-  } = useGetEmployeesQuery();
+  } = useGetEmployeesQuery(undefined, {
+    skip: Boolean(searchId),
+  });
 
   // Search employee by ID
   const {
     data: searchedEmployee,
     isLoading: isSearching,
+    isFetching: isSearchFetching,
     isError: isSearchError,
   } = useGetEmployeeByIdQuery(searchId, {
     skip: !searchId,
   });
+
+  // Handle the isLoading state based on the active query parameters (searchId):
+  // If searchId is cleared/empty, search is inactive so isSearchLoading is immediately false.
+  // This prevents the race condition where isLoading remains true after clearing the search,
+  // which previously prevented the full employee list from rendering.
+  const isSearchLoading = Boolean(searchId) && Boolean(isSearching || isSearchFetching);
 
   // Delete employee mutation
   const [deleteEmployee, { isLoading: isDeleting }] = useDeleteEmployeeMutation();
@@ -91,13 +100,13 @@ function EmployeeListPage() {
     }
   };
 
-  // Loading initial employees
-  if (isLoading) {
+  // Loading initial employees (only when no search is active)
+  if (isLoading && !searchId) {
     return <LoadingSpinner message="Loading employees..." />;
   }
 
-  // Error loading initial employees
-  if (isError) {
+  // Error loading initial employees (only when no search is active)
+  if (isError && !searchId) {
     return (
       <Box sx={{ my: 4 }}>
         <ErrorMessage
@@ -113,11 +122,29 @@ function EmployeeListPage() {
   let displayedEmployees = employees;
   if (searchId) {
     if (searchedEmployee && !isSearchError) {
-      displayedEmployees = Array.isArray(searchedEmployee) ? searchedEmployee : [searchedEmployee];
+      if (Array.isArray(searchedEmployee)) {
+        displayedEmployees = searchedEmployee;
+      } else {
+        displayedEmployees = [searchedEmployee];
+      }
     } else {
       displayedEmployees = [];
     }
   }
+
+  // Check if searched employee was not found:
+  // If searchId is active, loading is complete, and either:
+  // - the query resulted in an error
+  // - the result is null/undefined
+  // - the result is an empty array [] (mockapi.io behavior for non-existent IDs)
+  // - displayedEmployees is empty
+  const isSearchNotFound =
+    Boolean(searchId) &&
+    !isSearchLoading &&
+    (isSearchError ||
+      !searchedEmployee ||
+      (Array.isArray(searchedEmployee) && searchedEmployee.length === 0) ||
+      displayedEmployees.length === 0);
 
   return (
     <Box>
@@ -148,10 +175,12 @@ function EmployeeListPage() {
       <SearchBar onSearch={handleSearch} onClear={handleClear} initialValue={searchId} />
 
       {/* Searching State */}
-      {isSearching && <LoadingSpinner message={`Searching for employee #${searchId}...`} size={30} />}
+      {isSearchLoading && (
+        <LoadingSpinner message={`Searching for employee #${searchId}...`} size={30} />
+      )}
 
       {/* Search Not Found State */}
-      {!isSearching && searchId && (isSearchError || displayedEmployees.length === 0) && (
+      {isSearchNotFound && (
         <EmptyState
           title="No Employee Found"
           description={`Employee with ID "${searchId}" was not found. Please verify the ID and try again.`}
@@ -171,7 +200,7 @@ function EmployeeListPage() {
       )}
 
       {/* Employee Table */}
-      {!isSearching && displayedEmployees.length > 0 && (
+      {!isSearchLoading && displayedEmployees.length > 0 && (
         <EmployeeTable
           employees={displayedEmployees}
           onEdit={handleEdit}

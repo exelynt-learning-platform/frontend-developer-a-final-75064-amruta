@@ -37,4 +37,23 @@ describe("employeeApi definition", () => {
     expect(typeof employeeApi.endpoints.getEmployees.select).toBe("function");
     expect(typeof employeeApi.endpoints.getEmployeeById.select).toBe("function");
   });
+
+  it("handles mockapi responses in getEmployeeById transformResponse", () => {
+    const transform = employeeApi.endpoints.getEmployeeById.transformResponse;
+    if (typeof transform === "function") {
+      // Empty array should normalize to null (not found)
+      expect(transform([])).toBeNull();
+
+      // Array with element should extract the first element
+      const employee = { id: "1", name: "Amruta" };
+      expect(transform([employee])).toEqual(employee);
+
+      // Direct object should be returned as is
+      expect(transform(employee)).toEqual(employee);
+
+      // Empty object or null should return null
+      expect(transform({})).toBeNull();
+      expect(transform(null)).toBeNull();
+    }
+  });
 });

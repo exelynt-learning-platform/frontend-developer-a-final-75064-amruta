@@ -1,13 +1,25 @@
+import { useState } from "react";
 import { Box, Typography, Paper } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 
 import { useCreateEmployeeMutation } from "../../features/employees/employeeApi";
 import { useGetCountriesQuery } from "../../features/countries/countryApi";
+import { getErrorMessage } from "../../utils/errorHandler";
 import EmployeeForm from "../../components/employee/EmployeeForm";
 import ErrorMessage from "../../components/common/ErrorMessage";
 
+const DEFAULT_EMPLOYEE_VALUES = Object.freeze({
+  name: "",
+  email: "",
+  mobile: "",
+  country: "",
+  state: "",
+  district: "",
+});
+
 function AddEmployeePage() {
   const navigate = useNavigate();
+  const [submitErrorMessage, setSubmitErrorMessage] = useState(null);
 
   const {
     data: countries = [],
@@ -21,10 +33,12 @@ function AddEmployeePage() {
 
   const handleSubmit = async (formData) => {
     try {
+      setSubmitErrorMessage(null);
       await createEmployee(formData).unwrap();
       navigate("/employees");
     } catch (error) {
-      console.error("Failed to create employee:", error);
+      const userMessage = getErrorMessage(error, "Failed to create employee. Please try again.");
+      setSubmitErrorMessage(userMessage);
     }
   };
 
@@ -51,10 +65,10 @@ function AddEmployeePage() {
         />
       )}
 
-      {isCreateError && (
+      {(isCreateError || submitErrorMessage) && (
         <ErrorMessage
           title="Creation Failed"
-          message="Failed to create employee. Please try again."
+          message={submitErrorMessage || "Failed to create employee. Please try again."}
           error={createError}
         />
       )}
@@ -68,6 +82,7 @@ function AddEmployeePage() {
       >
         <EmployeeForm
           countries={countries}
+          defaultValues={DEFAULT_EMPLOYEE_VALUES}
           isSubmitting={isCreating || isCountriesLoading}
           isCountriesLoading={isCountriesLoading}
           onSubmit={handleSubmit}

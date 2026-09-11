@@ -38,4 +38,22 @@ describe("EmployeeTable Component", () => {
     );
     expect(container.firstChild).toBeNull();
   });
+
+  it("renders accessible table caption and scope attributes for headers", () => {
+    render(
+      <EmployeeTable
+        employees={employees}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    );
+
+    expect(
+      screen.getByText(/employees directory - showing 2 employees/i)
+    ).toBeInTheDocument();
+
+    const idHeader = screen.getByRole("columnheader", { name: "ID" });
+    expect(idHeader).toBeInTheDocument();
+    expect(idHeader).toHaveAttribute("scope", "col");
+  });
 });
